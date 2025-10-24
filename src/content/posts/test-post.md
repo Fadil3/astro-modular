@@ -1,5 +1,5 @@
 ---
-title: Formatting Reference
+title: Test Post
 date: 2025-09-08
 description: Explore all the markdown, extended markdown, an`d other embed features available in this blog theme.
 tags:
