@@ -368,11 +368,9 @@ function generateNetlifyConfig(redirects) {
     redirectLines.push('');
   }
   
-  // Always add the catch-all 404 redirect at the end
-  redirectLines.push('[[redirects]]');
-  redirectLines.push('  from = "/*"');
-  redirectLines.push('  to = "/404"');
-  redirectLines.push('  status = 404');
+  // Note: Do NOT add a catch-all 404 for Netlify SSR.
+  // The @astrojs/netlify adapter handles SSR routing and 404 responses.
+  // A manual catch-all here would intercept SSR/function routes and break the app.
   
   return redirectLines.join('\n');
 }

@@ -23,42 +23,40 @@ const locale = Astro.currentLocale || 'en';
 
 // 1) Try Strapi Pages first (so /about resolves to Strapi without needing /page/about)
 const strapiPage = await fetchStrapiPageBySlug(slug, locale);
-if (strapiPage) {
-  // Render Strapi-backed page
-  const page = strapiPage;
-  return await Astro.render(StrapiPageLayout, { page });
-}
 
-// 2) Fallback to content collections for legacy/special pages
-// Special pages that act as fallbacks when optional content types are disabled
-if (slug === 'projects' && !siteConfig.optionalContentTypes.projects) {
-  const special = await getCollection('special');
-  const specialPage = special.find((p) => p.slug === 'projects');
-  if (specialPage) {
-    return await Astro.render(PageLayout, { page: specialPage });
+// Prepare fallbacks only if no Strapi page
+let specialPage = null;
+let contentPage = null;
+
+if (!strapiPage) {
+  // 2) Fallback to content collections for legacy/special pages
+  if (slug === 'projects' && !siteConfig.optionalContentTypes.projects) {
+    const special = await getCollection('special');
+    specialPage = special.find((p) => p.slug === 'projects') || null;
+  } else if (slug === 'docs' && !siteConfig.optionalContentTypes.docs) {
+    const special = await getCollection('special');
+    specialPage = special.find((p) => p.slug === 'docs') || null;
+  } else {
+    // Regular content pages (legacy file-based pages)
+    const pages = await getCollection('pages');
+    const candidate = pages.find((p) => p.slug === slug) || null;
+    if (candidate) {
+      const isDev = import.meta.env.DEV;
+      if (!isDev && candidate.data.draft) {
+        // Drafts not visible in production
+        // Fall through to 404 handled after frontmatter
+      } else {
+        contentPage = candidate;
+      }
+    }
   }
 }
 
-if (slug === 'docs' && !siteConfig.optionalContentTypes.docs) {
-  const special = await getCollection('special');
-  const specialPage = special.find((p) => p.slug === 'docs');
-  if (specialPage) {
-    return await Astro.render(PageLayout, { page: specialPage });
-  }
+// If nothing matched, redirect to 404 here to avoid rendering below
+if (!strapiPage && !specialPage && !contentPage) {
+  return Astro.redirect('/404');
 }
-
-// Regular content pages (legacy file-based pages)
-const pages = await getCollection('pages');
-const contentPage = pages.find((p) => p.slug === slug);
-if (contentPage) {
-  // In production, hide drafts
-  const isDev = import.meta.env.DEV;
-  if (!isDev && contentPage.data.draft) {
-    return Astro.redirect('/404');
-  }
-  return await Astro.render(PageLayout, { page: contentPage });
-}
-
-// Nothing matched
-return Astro.redirect('/404');
 ---
+{strapiPage && (<StrapiPageLayout page={strapiPage} />)}
+{!strapiPage && specialPage && (<PageLayout page={specialPage} />)}
+{!strapiPage && !specialPage && contentPage && (<PageLayout page={contentPage} />)}
