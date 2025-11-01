@@ -247,7 +247,9 @@ async function strapiFetch<T>(
   const res = await fetch(url.toString());
   if (!res.ok) {
     throw new Error(
-      `Strapi request failed: ${res.status} ${res.statusText} for ${url.toString()}`
+      `Strapi request failed: ${res.status} ${
+        res.statusText
+      } for ${url.toString()}`
     );
   }
   return (await res.json()) as T;
