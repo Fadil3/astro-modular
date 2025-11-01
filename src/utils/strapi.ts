@@ -223,9 +223,20 @@ async function strapiFetch<T>(
   path: string,
   params: Record<string, string | number | boolean | undefined> = {}
 ): Promise<T> {
+  // IMPORTANT: STRAPI_URL must be set in the environment at runtime (Netlify Functions)
+  // e.g., in Netlify UI > Site settings > Environment variables, or netlify.toml
   const base = getEnv("STRAPI_URL", "");
   const token = getEnv("STRAPI_TOKEN");
-  const url = new URL(joinUrl(base, `/api${path}`));
+
+  if (!base) {
+    // Provide a clear, actionable error instead of throwing an Invalid URL
+    throw new Error(
+      "STRAPI_URL environment variable is not set. Set STRAPI_URL to your Strapi base URL (e.g., https://cms.server-fadil.my.id) in your deployment environment so server-side routes can fetch content."
+    );
+  }
+
+  // Build the API URL robustly using URL's base parameter
+  const url = new URL(`/api${path}`, base);
   Object.entries(params).forEach(([k, v]) => {
     if (v === undefined || v === null || v === "") return;
     url.searchParams.set(k, String(v));
@@ -236,9 +247,7 @@ async function strapiFetch<T>(
   const res = await fetch(url.toString());
   if (!res.ok) {
     throw new Error(
-      `Strapi request failed: ${res.status} ${
-        res.statusText
-      } for ${url.toString()}`
+      `Strapi request failed: ${res.status} ${res.statusText} for ${url.toString()}`
     );
   }
   return (await res.json()) as T;

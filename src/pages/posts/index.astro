@@ -7,6 +7,9 @@ import Pagination from '@/components/Pagination.astro';
 import Icon from '@/components/Icon.astro';
 import { fetchStrapiPosts } from '@/utils/strapi';
 
+// Enable server-side rendering for Strapi-backed index route
+export const prerender = false;
+
 // Read tag and locale
 const url = new URL(Astro.request.url);
 const selectedTag = url.searchParams.get('tag');

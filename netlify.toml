@@ -5,6 +5,8 @@
 [build.environment]
   NODE_VERSION = "18"
   PNPM_VERSION = "8"
+  # Strapi base URL for SSR runtime (required by src/utils/strapi.ts)
+  STRAPI_URL = "https://cms.server-fadil.my.id"
 
 # Enable compression for all text-based files
 # Note: Netlify automatically handles gzip/brotli compression based on client support

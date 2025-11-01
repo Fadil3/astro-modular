@@ -11,12 +11,16 @@ import { fetchStrapiPosts } from '@/utils/strapi';
 export const prerender = false;
 
 const { page } = Astro.params;
-console.log('[page].astro (new) - Received page:', page);
-console.log('[page].astro (new) - Astro.url.pathname:', Astro.url.pathname);
+if (import.meta.env.DEV) {
+  console.log('[page].astro (new) - Received page:', page);
+  console.log('[page].astro (new) - Astro.url.pathname:', Astro.url.pathname);
+}
 const url = new URL(Astro.request.url);
 const selectedTag = url.searchParams.get('tag') || undefined;
 const currentPage = Math.max(1, parseInt(page || '2', 10) || 2);
-console.log('[page].astro (new) - Parsed currentPage:', currentPage);
+if (import.meta.env.DEV) {
+  console.log('[page].astro (new) - Parsed currentPage:', currentPage);
+}
 const postsPerPage = siteConfig.postOptions.postsPerPage;
 const locale = siteConfig.language || 'en';
 
