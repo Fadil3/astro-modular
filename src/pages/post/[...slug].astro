@@ -3,13 +3,15 @@ import { fetchStrapiPostBySlug } from '@/utils/strapi';
 import { siteConfig } from '@/config';
 import StrapiPostLayout from '@/layouts/StrapiPostLayout.astro';
 
-// Server-rendered Strapi post detail (legacy /posts/:slug)
+// Server-rendered Strapi post detail route
 export const prerender = false;
 
 const { slug } = Astro.params;
+console.log('[post/[...slug]].astro - Received slug:', slug);
 const locale = siteConfig.language || undefined;
 const post = slug ? await fetchStrapiPostBySlug(slug, locale) : null;
 if (!post) {
+  console.log('[post/[...slug]].astro - No post found, redirecting to 404');
   return Astro.redirect('/404');
 }
 ---

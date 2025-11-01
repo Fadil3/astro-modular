@@ -1,0 +1,14 @@
+{
+  "kind": "singleType",
+  "collectionName": "posts_index_pages",
+  "info": {
+    "singularName": "posts-index-page",
+    "pluralName": "posts-index-pages",
+    "displayName": "Posts Index Page"
+  },
+  "options": { "draftAndPublish": true },
+  "attributes": {
+    "title": { "type": "string" },
+    "description": { "type": "text" }
+  }
+}

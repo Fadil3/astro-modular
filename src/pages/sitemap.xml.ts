@@ -1,44 +1,33 @@
 
 import type { APIRoute } from 'astro';
-import { getCollection } from 'astro:content';
 import { siteConfig } from '../config';
-import { shouldShowPost, shouldShowContent } from '../utils/markdown';
+import { fetchStrapiPosts, fetchStrapiPages, fetchStrapiProjects, fetchStrapiDocs } from '../utils/strapi';
 
 function shouldExcludeFromSitemap(slug: string): boolean {
-  const excludedSlugs = ['404', 'sitemap', 'rss'];
+  const excludedSlugs = ['404', 'sitemap', 'rss', 'home', 'not-found-page'];
   return excludedSlugs.includes(slug);
 }
 
 export const GET: APIRoute = async ({ site }) => {  
   const siteUrl = site?.toString() || siteConfig.site;  
+  const locale = 'en';
     
-  // Get all content collections
-  const posts = await getCollection('posts');  
-  const pages = await getCollection('pages');
-  const projects = await getCollection('projects');
-  const docs = await getCollection('docs');  
-    
-  // Filter posts based on environment  
-  const isDev = import.meta.env.DEV;  
-  const visiblePosts = posts.filter(post =>   
-    shouldShowPost(post, isDev) && !post.data.noIndex  
-  );  
-    
-  // Filter pages (exclude drafts, special pages, and noIndex)  
-  const visiblePages = pages.filter(page =>   
-    !page.data.draft &&   
-    !page.data.noIndex &&  
-    !shouldExcludeFromSitemap(page.slug)  
-  );
-
-  // Filter projects and docs based on environment and optional content type settings
-  const visibleProjects = siteConfig.optionalContentTypes.projects 
-    ? projects.filter(project => shouldShowContent(project, isDev) && !project.data.noIndex)
+  // Get all content from Strapi
+  const postsResponse = await fetchStrapiPosts({ pageSize: 1000, locale });
+  const pages = await fetchStrapiPages({ locale });
+  const projects = siteConfig.optionalContentTypes.projects 
+    ? await fetchStrapiProjects({ locale })
+    : [];
+  const docs = siteConfig.optionalContentTypes.docs 
+    ? await fetchStrapiDocs({ locale })
     : [];
   
-  const visibleDocs = siteConfig.optionalContentTypes.docs 
-    ? docs.filter(doc => shouldShowContent(doc, isDev) && !doc.data.noIndex)
-    : []; 
+  const posts = postsResponse.items || [];
+  
+  // Filter out excluded pages
+  const visiblePages = pages.filter((page: any) =>   
+    !shouldExcludeFromSitemap(page.slug)  
+  ); 
   
   // Generate URLs
   const urls: string[] = [];
@@ -88,11 +77,11 @@ export const GET: APIRoute = async ({ site }) => {
   }
   
   // Individual posts
-  visiblePosts.forEach(post => {
+  posts.forEach((post: any) => {
     urls.push(`
       <url>
-        <loc>${siteUrl}posts/${post.slug}/</loc>
-        <lastmod>${post.data.date.toISOString()}</lastmod>
+        <loc>${siteUrl}post/${post.slug}/</loc>
+        <lastmod>${new Date(post.publishedAt).toISOString()}</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
       </url>
@@ -100,11 +89,11 @@ export const GET: APIRoute = async ({ site }) => {
   });
   
   // Individual pages
-  visiblePages.forEach(page => {
+  visiblePages.forEach((page: any) => {
     urls.push(`
       <url>
         <loc>${siteUrl}${page.slug}/</loc>
-        <lastmod>${new Date().toISOString()}</lastmod>
+        <lastmod>${page.lastModified ? new Date(page.lastModified).toISOString() : new Date().toISOString()}</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
       </url>
@@ -112,12 +101,11 @@ export const GET: APIRoute = async ({ site }) => {
   });
 
   // Individual projects
-  visibleProjects.forEach(project => {
-    const lastmod = project.data.date;
+  projects.forEach((project: any) => {
     urls.push(`
       <url>
-        <loc>${siteUrl}projects/${project.slug}/</loc>
-        <lastmod>${lastmod.toISOString()}</lastmod>
+        <loc>${siteUrl}project/${project.slug}/</loc>
+        <lastmod>${new Date(project.date).toISOString()}</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
       </url>
@@ -125,11 +113,11 @@ export const GET: APIRoute = async ({ site }) => {
   });
 
   // Individual documentation pages
-  visibleDocs.forEach(doc => {
-    const lastmod = doc.data.lastModified || new Date();
+  docs.forEach((doc: any) => {
+    const lastmod = doc.lastModified ? new Date(doc.lastModified) : new Date();
     urls.push(`
       <url>
-        <loc>${siteUrl}docs/${doc.slug}/</loc>
+        <loc>${siteUrl}doc/${doc.slug}/</loc>
         <lastmod>${lastmod.toISOString()}</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
@@ -139,12 +127,12 @@ export const GET: APIRoute = async ({ site }) => {
   
   // Posts pagination pages
   const postsPerPage = siteConfig.postOptions.postsPerPage;
-  const totalPages = Math.ceil(visiblePosts.length / postsPerPage);
+  const totalPages = Math.ceil(posts.length / postsPerPage);
   
   for (let page = 2; page <= totalPages; page++) {
     urls.push(`
       <url>
-        <loc>${siteUrl}posts/${page}/</loc>
+        <loc>${siteUrl}posts/page/${page}/</loc>
         <lastmod>${new Date().toISOString()}</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.5</priority>

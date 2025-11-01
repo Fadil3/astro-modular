@@ -1,0 +1,51 @@
+{
+  "kind": "collectionType",
+  "collectionName": "posts",
+  "info": {
+    "singularName": "post",
+    "pluralName": "posts",
+    "displayName": "Post",
+    "description": "Blog posts (Markdown)"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": false
+    }
+  },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true,
+      "unique": true
+    },
+    "description": { "type": "text" },
+    "content": { "type": "text" },
+    "date": { "type": "datetime" },
+    "coverImage": {
+      "type": "media",
+      "allowedTypes": ["images"],
+      "multiple": false
+    },
+    "coverImageAlt": { "type": "string" },
+    "imageOG": { "type": "boolean", "default": false },
+    "hideCoverImage": { "type": "boolean", "default": false },
+    "hideTOC": { "type": "boolean", "default": false },
+    "targetKeyword": { "type": "string" },
+    "tags": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::tag.tag",
+      "inversedBy": "posts"
+    },
+    "aliases": {
+      "type": "component",
+      "repeatable": true,
+      "component": "shared.alias"
+    }
+  }
+}

@@ -1,0 +1,77 @@
+---
+import { siteConfig } from '@/config';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Icon from '@/components/Icon.astro';
+
+interface Props {
+  post: {
+    slug: string;
+    title: string;
+    date: Date;
+    imageUrl?: string;
+    tags: string[];
+    html?: string;
+  };
+}
+
+const { post } = Astro.props as Props;
+
+const seoData = {
+  title: `${post.title} | ${siteConfig.title}`,
+  description: undefined,
+  canonical: Astro.url.href,
+  ogType: 'article' as const
+};
+---
+
+<BaseLayout seoData={seoData}>
+  <div class="py-8 relative">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 relative" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+      <article class={`bg-primary-50 dark:bg-primary-900 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm ${post.imageUrl ? 'overflow-hidden' : ''}`}>
+        {post.imageUrl && (
+          <div class="h-40 sm:h-48 md:h-56 lg:h-64 overflow-hidden rounded-t-lg bg-primary-100 dark:bg-primary-800">
+            <img src={post.imageUrl} alt={`Featured image for post: ${post.title}`} class="w-full h-full object-cover" width="800" height="256" loading="eager" fetchpriority="high" decoding="async" />
+          </div>
+        )}
+
+        <div class={`p-6 ${post.imageUrl ? 'rounded-b-lg' : 'rounded-lg'}`}>
+          <header class="mb-4">
+            <h1 class="text-xl font-bold text-primary-900 dark:text-primary-50 mb-6 leading-tight">{post.title}</h1>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-primary-600 dark:text-primary-300 mb-6">
+              <time datetime={post.date.toISOString()} class="font-medium">{post.date.toLocaleDateString()}</time>
+            </div>
+            {siteConfig.postOptions.tags && post.tags && post.tags.length > 0 && (
+              <div class="flex flex-wrap gap-2 mb-8">
+                {post.tags.map(tag => (
+                  <a href={`/posts?tag=${encodeURIComponent(tag)}`} class="text-xs text-primary-600 dark:text-primary-300 bg-primary-100 dark:bg-primary-800 px-2.5 py-1 rounded-full border border-primary-200 dark:border-primary-700 transition-colors hover:bg-highlight-100 dark:hover:bg-highlight-800">{tag}</a>
+                ))}
+              </div>
+            )}
+          </header>
+
+          <div class="prose dark:prose-dark max-w-none" id="post-content" set:html={post.html || ''} />
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <Fragment slot="scripts">
+    <script>
+      // Open external links in a new tab
+      function processExternalLinks() {
+        const allLinks = document.querySelectorAll('.prose a[href]');
+        allLinks.forEach(link => {
+          const href = link.getAttribute('href');
+          if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+            if (!link.hasAttribute('target')) {
+              link.setAttribute('target', '_blank');
+              link.setAttribute('rel', 'noopener noreferrer');
+            }
+          }
+        });
+      }
+      document.addEventListener('DOMContentLoaded', processExternalLinks);
+      document.addEventListener('swup:contentReplaced', () => setTimeout(processExternalLinks, 100));
+    </script>
+  </Fragment>
+</BaseLayout>

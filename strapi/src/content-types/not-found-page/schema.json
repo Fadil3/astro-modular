@@ -1,0 +1,15 @@
+{
+  "kind": "singleType",
+  "collectionName": "not_found_pages",
+  "info": {
+    "singularName": "not-found-page",
+    "pluralName": "not-found-pages",
+    "displayName": "Not Found Page"
+  },
+  "options": { "draftAndPublish": true },
+  "attributes": {
+    "title": { "type": "string" },
+    "description": { "type": "text" },
+    "content": { "type": "text" }
+  }
+}

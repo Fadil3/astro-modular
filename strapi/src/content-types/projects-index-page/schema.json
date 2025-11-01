@@ -1,0 +1,15 @@
+{
+  "kind": "singleType",
+  "collectionName": "projects_index_pages",
+  "info": {
+    "singularName": "projects-index-page",
+    "pluralName": "projects-index-pages",
+    "displayName": "Projects Index Page"
+  },
+  "options": { "draftAndPublish": true },
+  "attributes": {
+    "title": { "type": "string" },
+    "description": { "type": "text" },
+    "content": { "type": "text" }
+  }
+}

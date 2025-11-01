@@ -1,0 +1,71 @@
+---
+import { siteConfig } from '@/config';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+interface Props {
+  page: {
+    slug: string;
+    title: string;
+    description?: string;
+    imageUrl?: string;
+    html?: string;
+    lastModified?: Date;
+  };
+}
+
+const { page } = Astro.props as Props;
+
+const seoData = {
+  title: `${page.title} | ${siteConfig.title}`,
+  description: page.description,
+  canonical: Astro.url.href,
+  ogType: 'website' as const
+};
+---
+
+<BaseLayout seoData={seoData}>
+  <div class="py-8 relative">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 relative" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+      <article class={`bg-primary-50 dark:bg-primary-900 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm ${page.imageUrl ? 'overflow-hidden' : ''}`}>
+        {page.imageUrl && (
+          <div class="h-40 sm:h-48 md:h-56 lg:h-64 overflow-hidden rounded-t-lg bg-primary-100 dark:bg-primary-800">
+            <img src={page.imageUrl} alt={`Featured image for page: ${page.title}`} class="w-full h-full object-cover" width="800" height="256" loading="eager" fetchpriority="high" decoding="async" />
+          </div>
+        )}
+
+        <div class={`p-6 ${page.imageUrl ? 'rounded-b-lg' : 'rounded-lg'}`}>
+          <header class="mb-4">
+            <h1 class="text-xl font-bold text-primary-900 dark:text-primary-50 mb-6 leading-tight">{page.title}</h1>
+            {page.lastModified && (
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-primary-600 dark:text-primary-300 mb-6">
+                <time datetime={page.lastModified.toISOString()} class="font-medium">Last updated: {page.lastModified.toLocaleDateString()}</time>
+              </div>
+            )}
+          </header>
+
+          <div class="prose dark:prose-dark max-w-none" id="page-content" set:html={page.html || ''} />
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <Fragment slot="scripts">
+    <script>
+      // Open external links in a new tab
+      function processExternalLinks() {
+        const allLinks = document.querySelectorAll('.prose a[href]');
+        allLinks.forEach(link => {
+          const href = link.getAttribute('href');
+          if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+            if (!link.hasAttribute('target')) {
+              link.setAttribute('target', '_blank');
+              link.setAttribute('rel', 'noopener noreferrer');
+            }
+          }
+        });
+      }
+      document.addEventListener('DOMContentLoaded', processExternalLinks);
+      document.addEventListener('swup:contentReplaced', () => setTimeout(processExternalLinks, 100));
+    </script>
+  </Fragment>
+</BaseLayout>

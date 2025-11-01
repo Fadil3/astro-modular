@@ -1,14 +1,15 @@
 ---
-import { getCollection, getEntry } from 'astro:content';
+import { getEntry } from 'astro:content';
 import { siteConfig } from '@/config';
 import { generatePostsListSEO } from '@/utils/seo';
-import { shouldShowContent } from '@/utils/markdown';
-import { hasDocCategories, getDocCategories, groupDocsByCategory } from '@/utils/categories';
+import { fetchStrapiDocs } from '@/utils/strapi';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import PageLayout from '@/layouts/PageLayout.astro';
-import DocumentationCard from '@/components/DocumentationCard.astro';
+import StrapiDocCard from '@/components/StrapiDocCard.astro';
 import TableOfContents from '@/components/TableOfContents.astro';
 import Icon from '@/components/Icon.astro';
+
+export const prerender = false;
 
 // Check if docs are enabled and handle fallback
 let fallbackPage = null;
@@ -28,12 +29,9 @@ if (!siteConfig.optionalContentTypes.docs) {
   }
 }
 
-// Get all docs
-const allDocs = await getCollection('docs');
-const isDev = import.meta.env.DEV;
-
-// Filter documentation
-const visibleDocs = allDocs.filter(doc => shouldShowContent(doc, isDev));
+// Get all docs from Strapi
+const locale = Astro.currentLocale || 'en';
+const allDocs = await fetchStrapiDocs({ locale });
 
 // Get docs page content from special collection
 let docsPageContent = null;
@@ -52,19 +50,29 @@ try {
 }
 
 // Check if any docs have categories
-const docsHaveCategories = hasDocCategories(visibleDocs);
+const docsHaveCategories = allDocs.some(doc => doc.category);
 
 // Group docs by category or list them without categories
-let docsByCategory: Record<string, typeof visibleDocs>;
+let docsByCategory: Record<string, typeof allDocs>;
 let sortedCategories: string[];
 let tocHeadings: any[];
 let shouldShowTOC: boolean;
 
-// Always group docs by category (creates "Unsorted" for docs without categories)
-docsByCategory = groupDocsByCategory(visibleDocs);
-sortedCategories = Object.keys(docsByCategory).sort();
-
 if (docsHaveCategories) {
+  // Group docs by category
+  docsByCategory = allDocs.reduce((acc, doc) => {
+    const category = doc.category || 'Unsorted';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(doc);
+    return acc;
+  }, {} as Record<string, typeof allDocs>);
+  
+  // Sort categories and docs within each category
+  sortedCategories = Object.keys(docsByCategory).sort();
+  sortedCategories.forEach(category => {
+    docsByCategory[category].sort((a, b) => (a.order || 999) - (b.order || 999));
+  });
+  
   // Generate TOC headings from categories
   tocHeadings = sortedCategories.map(category => ({
     depth: 2,
@@ -72,7 +80,9 @@ if (docsHaveCategories) {
     text: category
   }));
 } else {
-  // No real categories - just list docs by order without TOC headings
+  // No categories - just list docs by order
+  docsByCategory = { 'All Documentation': allDocs.sort((a, b) => (a.order || 999) - (b.order || 999)) };
+  sortedCategories = ['All Documentation'];
   tocHeadings = [];
 }
 
@@ -125,10 +135,10 @@ seoData.noIndex = (docsPageContent?.data as any)?.noIndex || false;
               
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {docsByCategory[category].map((doc, index) => (
-                  <DocumentationCard 
-                    documentation={doc} 
+                  <StrapiDocCard 
+                    doc={doc} 
                     eager={index === 0}
-                    context="docs"
+                    showImage={false}
                   />
                 ))}
               </div>

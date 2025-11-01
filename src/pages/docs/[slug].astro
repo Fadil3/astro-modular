@@ -1,27 +1,13 @@
 ---
-import { getCollection } from 'astro:content';
-import { shouldShowContent } from '@/utils/markdown';
-import { siteConfig } from '@/config';
-import DocumentationLayout from '@/layouts/DocumentationLayout.astro';
+// Redirect old /docs/:slug to new /doc/:slug route
+export const prerender = false;
 
-export async function getStaticPaths() {
-  // If docs are disabled, don't generate any paths
-  if (!siteConfig.optionalContentTypes.docs) {
-    return [];
-  }
-  
-  const docs = await getCollection('docs');
-  const isDev = import.meta.env.DEV;
-  
-  return docs
-    .filter(doc => shouldShowContent(doc, isDev))
-    .map(doc => ({
-      params: { slug: doc.slug },
-      props: { documentation: doc }
-    }));
+const { slug } = Astro.params;
+
+if (!slug) {
+  return Astro.redirect('/404');
 }
 
-const { documentation } = Astro.props as { documentation: any };
+// Redirect to new URL pattern
+return Astro.redirect(`/doc/${slug}`);
 ---
-
-<DocumentationLayout documentation={documentation} />

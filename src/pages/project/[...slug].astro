@@ -1,0 +1,21 @@
+---
+import { fetchStrapiProjectBySlug } from '@/utils/strapi';
+import StrapiProjectLayout from '@/layouts/StrapiProjectLayout.astro';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+const locale = Astro.currentLocale || 'en';
+
+if (!slug) {
+  return Astro.redirect('/404');
+}
+
+const project = await fetchStrapiProjectBySlug(slug, locale);
+
+if (!project) {
+  return Astro.redirect('/404');
+}
+---
+
+<StrapiProjectLayout project={project} />

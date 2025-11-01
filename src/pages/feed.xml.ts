@@ -1,16 +1,22 @@
 import type { APIRoute } from 'astro';
-import { getCollection } from 'astro:content';
 import { siteConfig } from '../config';
+import { fetchStrapiPosts } from '../utils/strapi';
 
 export const GET: APIRoute = async ({ site }) => {
   const siteUrl = site?.toString() || siteConfig.site;
-  const posts = await getCollection('posts', ({ data }) => {
-    return !data.draft;
+  
+  // Get all posts from Strapi
+  const response = await fetchStrapiPosts({ 
+    pageSize: 1000, // Get all posts for feed
+    locale: 'en' 
   });
   
+  // Extract posts array from response
+  const posts = response.items || [];
+  
   // Sort posts by date (newest first)
-  const sortedPosts = posts.sort((a, b) => 
-    new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
+  const sortedPosts = posts.sort((a: any, b: any) => 
+    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
   );
   
   // Generate Atom feed XML
@@ -26,15 +32,15 @@ export const GET: APIRoute = async ({ site }) => {
   </author>
   <updated>${new Date().toISOString()}</updated>
   
-  ${sortedPosts.map(post => `
+  ${sortedPosts.map((post: any) => `
   <entry>
-    <title>${post.data.title}</title>
-    <link href="${siteUrl}posts/${post.slug}/"/>
-    <id>${siteUrl}posts/${post.slug}/</id>
-    <published>${new Date(post.data.date).toISOString()}</published>
-    <updated>${new Date(post.data.date).toISOString()}</updated>
-    <summary>${post.data.description || ''}</summary>
-    ${post.data.tags ? post.data.tags.map(tag => `<category term="${tag}"/>`).join('') : ''}
+    <title>${post.title}</title>
+    <link href="${siteUrl}post/${post.slug}/"/>
+    <id>${siteUrl}post/${post.slug}/</id>
+    <published>${new Date(post.publishedAt).toISOString()}</published>
+    <updated>${new Date(post.publishedAt).toISOString()}</updated>
+    <summary>${post.description || post.excerpt || ''}</summary>
+    ${post.tags ? post.tags.map((tag: string) => `<category term="${tag}"/>`).join('') : ''}
   </entry>`).join('')}
 </feed>`;
   

@@ -1,27 +1,19 @@
 #!/usr/bin/env node
 
 /**
- * Graph Data Generation Script
+ * Graph Data Generation Script (Strapi Version)
  * 
  * This script generates graph data for the local graph feature by analyzing
- * post connections (both wikilinks and standard links) and tag relationships.
+ * post connections (both wikilinks and standard links) from Strapi CMS.
  * 
  * The generated data includes:
  * - Post nodes with metadata (title, slug, date, tags)
- * - Tag nodes with metadata (name, color)
  * - Connections between posts (direct links)
- * - Connections between posts and tags (shared tags)
  * 
  * This data is used by the LocalGraph component to render an Obsidian-like graph view.
- * 
- * ID Generation Strategy:
- * - Uses path-based IDs (no frontmatter required)
- * - Single files: "my-post.md" → ID: "my-post"
- * - Folder-based: "my-folder/index.md" → ID: "my-folder"
- * - Nested content: "category/my-post.md" → ID: "category-my-post"
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -32,6 +24,10 @@ const projectRoot = join(__dirname, '..');
 // Configuration
 const OUTPUT_DIR = join(projectRoot, 'public', 'graph');
 const OUTPUT_FILE = join(OUTPUT_DIR, 'graph-data.json');
+
+// Get Strapi configuration from environment
+const STRAPI_URL = process.env.STRAPI_URL || 'http://localhost:1337';
+const STRAPI_TOKEN = process.env.STRAPI_TOKEN || '';
 
 /**
  * Read maxNodes from config file
@@ -70,27 +66,35 @@ if (!existsSync(OUTPUT_DIR)) {
 }
 
 /**
- * Generate a stable ID from file path
- * @param {string} filePath - The file path
- * @param {string} collectionType - The collection type (e.g., 'posts')
- * @returns {string} - The generated ID
+ * Fetch all posts from Strapi
  */
-function generateNodeId(filePath, collectionType) {
-  // Remove collection prefix and extension
-  let id = filePath.replace(`src/content/${collectionType}/`, '');
-  id = id.replace('.md', '');
-  id = id.replace('/index', ''); // Handle folder-based posts
-  
-  // Clean up the ID: lowercase, replace spaces/special chars with hyphens
-  id = id.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-  
-  // Remove multiple consecutive hyphens
-  id = id.replace(/-+/g, '-');
-  
-  // Remove leading/trailing hyphens
-  id = id.replace(/^-+|-+$/g, '');
-  
-  return id;
+async function fetchAllPosts() {
+  try {
+    const url = new URL(`${STRAPI_URL}/api/posts`);
+    url.searchParams.set('populate', '*');
+    url.searchParams.set('pagination[pageSize]', '1000');
+    url.searchParams.set('sort', 'publishedAt:desc');
+    
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (STRAPI_TOKEN) {
+      headers['Authorization'] = `Bearer ${STRAPI_TOKEN}`;
+    }
+    
+    const response = await fetch(url.toString(), { headers });
+    
+    if (!response.ok) {
+      throw new Error(`Strapi request failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.data || [];
+  } catch (error) {
+    log.error('Error fetching posts from Strapi:', error.message);
+    throw error;
+  }
 }
 
 /**
@@ -216,21 +220,8 @@ function extractLinkTextFromUrl(url) {
   const anchor = anchorIndex === -1 ? null : url.substring(anchorIndex + 1);
 
   // Handle posts/ prefixed links
-  if (link.startsWith('posts/')) {
-    let linkText = link.replace('posts/', '').replace(/\.md$/, '');
-    // Remove /index for folder-based posts
-    if (linkText.endsWith('/index') && linkText.split('/').length === 2) {
-      linkText = linkText.replace('/index', '');
-    }
-    return {
-      linkText: linkText,
-      anchor: anchor
-    };
-  }
-  
-  // Handle /posts/ URLs (relative links)
-  if (link.startsWith('/posts/')) {
-    let linkText = link.replace('/posts/', '').replace(/\.md$/, '');
+  if (link.startsWith('posts/') || link.startsWith('/posts/') || link.startsWith('post/') || link.startsWith('/post/')) {
+    let linkText = link.replace(/^(\/?)posts?(\/)?/, '').replace(/\.md$/, '');
     // Remove /index for folder-based posts
     if (linkText.endsWith('/index') && linkText.split('/').length === 2) {
       linkText = linkText.replace('/index', '');
@@ -266,190 +257,70 @@ function extractLinkTextFromUrl(url) {
 }
 
 /**
- * Read and parse markdown files from content directory
- */
-function readContentFiles(dirPath) {
-  const posts = [];
-  
-  try {
-    const items = readdirSync(dirPath);
-    
-    for (const item of items) {
-      const itemPath = join(dirPath, item);
-      const stat = statSync(itemPath);
-      
-      if (stat.isDirectory()) {
-        // Handle folder-based posts
-        const indexPath = join(itemPath, 'index.md');
-        if (existsSync(indexPath)) {
-          const content = readFileSync(indexPath, 'utf-8');
-          const parsed = parseMarkdownFile(content, item);
-          if (parsed) {
-            posts.push(parsed);
-          }
-        }
-      } else if (item.endsWith('.md')) {
-        // Handle single-file posts
-        const content = readFileSync(itemPath, 'utf-8');
-        const slug = item.replace('.md', '');
-        const parsed = parseMarkdownFile(content, slug);
-        if (parsed) {
-          posts.push(parsed);
-        }
-      }
-    }
-  } catch (error) {
-    log.error('Error reading content directory:', error);
-  }
-  
-  return posts;
-}
-
-/**
- * Parse markdown file and extract frontmatter and content
- */
-function parseMarkdownFile(content, slug) {
-  try {
-    // Extract frontmatter (handle both \n and \r\n line endings)
-    const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-    if (!frontmatterMatch) {
-      return null;
-    }
-    
-    const [, frontmatter, body] = frontmatterMatch;
-    const lines = frontmatter.split(/\r?\n/);
-    const data = {};
-    
-    // Parse frontmatter (improved YAML parser)
-    let currentKey = null;
-    let currentArray = [];
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const trimmedLine = line.trim();
-      
-      // Skip empty lines
-      if (!trimmedLine) continue;
-      
-      
-      // Check if this is a key-value pair
-      const colonIndex = line.indexOf(':');
-      if (colonIndex > 0 && !line.startsWith(' ')) {
-        // Save previous array if we have one
-        if (currentKey && currentArray.length > 0) {
-          data[currentKey] = [...currentArray];
-          currentArray = [];
-        }
-        
-        const key = line.substring(0, colonIndex).trim();
-        let value = line.substring(colonIndex + 1).trim();
-        
-        // Remove quotes if present
-        if ((value.startsWith('"') && value.endsWith('"')) || 
-            (value.startsWith("'") && value.endsWith("'"))) {
-          value = value.slice(1, -1);
-        }
-        
-        // Check if this is an array key (next line starts with dash)
-        if (i + 1 < lines.length && lines[i + 1].trim().startsWith('- ')) {
-          currentKey = key;
-          currentArray = [];
-        } else {
-          // Single value
-          if (key === 'date') {
-            data[key] = new Date(value);
-          } else if (key === 'draft') {
-            data[key] = value === 'true';
-          } else if (key === 'imageOG' || key === 'hideCoverImage' || key === 'noIndex' || key === 'featured') {
-            data[key] = value === 'true';
-          } else {
-            data[key] = value;
-          }
-        }
-      } else if (trimmedLine.startsWith('- ')) {
-        // This is an array item
-        const item = trimmedLine.substring(2).trim();
-        currentArray.push(item);
-      }
-    }
-    
-    // Save final array if we have one
-    if (currentKey && currentArray.length > 0) {
-      data[currentKey] = [...currentArray];
-    }
-    
-    return {
-      slug,
-      data,
-      body
-    };
-  } catch (error) {
-    log.warn(`Error parsing file ${slug}:`, error.message);
-    return null;
-  }
-}
-
-/**
- * Generate graph data from posts
+ * Generate graph data from Strapi posts
  */
 async function generateGraphData() {
-  log.info('🔍 Analyzing post connections...');
+  log.info('🔍 Analyzing post connections from Strapi...');
 
   try {
     // Get configuration values
     const maxNodes = getMaxNodesFromConfig();
     
-    // Read all posts from the content directory
-    const postsDir = join(projectRoot, 'src', 'content', 'posts');
-    log.info('📁 Reading posts from:', postsDir);
-    
-    const posts = readContentFiles(postsDir);
-    log.info(`📄 Found ${posts.length} posts`);
-
-    // Filter out draft posts in production
-    const isDev = process.env.NODE_ENV !== 'production';
-    const visiblePosts = posts.filter(post => isDev || !post.data.draft);
-    
-    log.info(`📄 Processing ${visiblePosts.length} visible posts`);
+    // Fetch all posts from Strapi
+    log.info(`📡 Fetching posts from Strapi: ${STRAPI_URL}`);
+    const strapiPosts = await fetchAllPosts();
+    log.info(`📄 Found ${strapiPosts.length} posts`);
 
     // Generate nodes and connections
     const nodes = [];
     const connections = [];
 
     // Process each post
-    for (const post of visiblePosts) {
+    for (const strapiPost of strapiPosts) {
+      // Get post attributes (Strapi v5 flattened structure)
+      const post = strapiPost.attributes || strapiPost;
+      const slug = post.slug;
+      const content = post.content || '';
+      
+      // Skip posts without publishedAt (drafts)
+      if (!post.publishedAt) continue;
+
       // Add post node
       const postNode = {
-        id: post.slug,
+        id: slug,
         type: 'post',
-        title: post.data.title,
-        slug: post.slug,
-        date: post.data.date ? post.data.date.toISOString() : new Date().toISOString(),
+        title: post.title,
+        slug: slug,
+        date: post.publishedAt || post.createdAt,
         connections: 0
       };
       nodes.push(postNode);
 
       // Extract links from post content
-      const wikilinks = extractWikilinks(post.body);
-      const standardLinks = extractStandardLinks(post.body);
+      const wikilinks = extractWikilinks(content);
+      const standardLinks = extractStandardLinks(content);
       const allLinks = [...wikilinks, ...standardLinks];
 
       // Process links to other posts
       for (const link of allLinks) {
-        const targetPost = visiblePosts.find(p => p.slug === link.slug);
-        if (targetPost && targetPost.slug !== post.slug) {
-          // Add post-to-post connection
-          connections.push({
-            source: post.slug,
-            target: targetPost.slug,
-            type: 'link'
-          });
+        const targetPost = nodes.find(n => n.slug === link.slug);
+        if (targetPost && targetPost.slug !== slug) {
+          // Check if connection already exists
+          const connectionExists = connections.some(
+            conn => conn.source === slug && conn.target === link.slug
+          );
           
-          // Update connection counts
-          postNode.connections++;
-          const targetNode = nodes.find(n => n.id === targetPost.slug);
-          if (targetNode) {
-            targetNode.connections++;
+          if (!connectionExists) {
+            // Add post-to-post connection
+            connections.push({
+              source: slug,
+              target: link.slug,
+              type: 'link'
+            });
+            
+            // Update connection counts
+            postNode.connections++;
+            targetPost.connections++;
           }
         }
       }

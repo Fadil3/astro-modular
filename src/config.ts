@@ -207,12 +207,12 @@ export const siteConfig: SiteConfig = {
   // [CONFIG:SITE_URL]
   site: "https://blog.mrayhanfadil.my.id",
   // [CONFIG:SITE_TITLE]
-  title: "Muhammad Rayhan Fadillah's Blog",
+  title: "mrayhanfadil's Blog",
   // [CONFIG:SITE_DESCRIPTION]
   description:
     "A blog about web development, programming, technology, and investment.",
   // [CONFIG:SITE_AUTHOR]
-  author: "Muhammad Rayhan Fadillah",
+  author: "mrayhanfadil",
   // [CONFIG:SITE_LANGUAGE]
   language: "en",
 
@@ -251,7 +251,7 @@ export const siteConfig: SiteConfig = {
     // [CONFIG:FOOTER_ENABLED]
     enabled: true,
     // [CONFIG:FOOTER_CONTENT]
-    content: `© 2025 {author}. Built with the <a href="https://github.com/davidvkimball/astro-modular" target="_blank">Astro Modular</a> theme.`,
+    content: `© 2025 {author}. Built with the <a href="https://github.com/davidvkimball/astro-modular" target="_blank">Astro Modular</a> theme and customized to support Strapi.`,
     // [CONFIG:FOOTER_SHOW_SOCIAL_ICONS]
     showSocialIconsInFooter: true,
   },
@@ -363,9 +363,9 @@ export const siteConfig: SiteConfig = {
   // Optional Content Types - Enable/disable optional content sections (takes priority over homeOptions)
   optionalContentTypes: {
     // [CONFIG:OPTIONAL_CONTENT_TYPES_PROJECTS]
-    projects: true, // Enable projects section
+    projects: true, // Enable projects section (now using Strapi)
     // [CONFIG:OPTIONAL_CONTENT_TYPES_DOCS]
-    docs: true, // Enable documentation section
+    docs: true, // Enable documentation section (now using Strapi)
   },
 
   // Home Options

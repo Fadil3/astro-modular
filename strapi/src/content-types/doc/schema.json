@@ -1,0 +1,48 @@
+{
+  "kind": "collectionType",
+  "collectionName": "docs",
+  "info": {
+    "singularName": "doc",
+    "pluralName": "docs",
+    "displayName": "Documentation",
+    "description": "Documentation pages (Markdown)"
+  },
+  "options": { "draftAndPublish": true },
+  "pluginOptions": { "i18n": { "localized": false } },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true,
+      "unique": true
+    },
+    "description": { "type": "text" },
+    "content": { "type": "text" },
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::doc-category.doc-category",
+      "inversedBy": "docs"
+    },
+    "order": { "type": "integer", "required": true },
+    "lastModified": { "type": "date" },
+    "version": { "type": "string" },
+    "coverImage": {
+      "type": "media",
+      "allowedTypes": ["images"],
+      "multiple": false
+    },
+    "coverImageAlt": { "type": "string" },
+    "hideCoverImage": { "type": "boolean", "default": false },
+    "hideTOC": { "type": "boolean", "default": false },
+    "showTOC": { "type": "boolean", "default": true },
+    "featured": { "type": "boolean", "default": false },
+    "noIndex": { "type": "boolean", "default": false },
+    "aliases": {
+      "type": "component",
+      "repeatable": true,
+      "component": "shared.alias"
+    }
+  }
+}

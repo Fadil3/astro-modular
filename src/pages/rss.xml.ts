@@ -1,26 +1,7 @@
 
 import rss from '@astrojs/rss';
-import { getCollection } from 'astro:content';
 import { siteConfig } from '../config';
-import { shouldShowPost, sortPostsByDate } from '../utils/markdown';
-
-// Helper function to extract image path from Obsidian bracket syntax
-function extractImagePath(image: string): string {
-  if (!image || typeof image !== 'string') return '';
-  
-  // Handle Obsidian bracket syntax: [[path/to/image.jpg]] (unquoted)
-  if (image.startsWith('[[') && image.endsWith(']]')) {
-    return image.slice(2, -2); // Remove [[ and ]]
-  }
-  
-  // Handle quoted Obsidian bracket syntax: "[[path/to/image.jpg]]"
-  if (image.startsWith('"[[') && image.endsWith(']]"')) {
-    return image.slice(3, -3); // Remove "[[ and ]]"
-  }
-  
-  // Return as-is for regular paths
-  return image;
-}
+import { fetchStrapiPosts } from '../utils/strapi';
 
 function getMimeTypeFromPath(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase();
@@ -40,13 +21,22 @@ function getMimeTypeFromPath(path: string): string {
 }
 
 export async function GET(context: any) {
-  // Get all posts
-  const posts = await getCollection('posts');
+  // Get all posts from Strapi
+  const response = await fetchStrapiPosts({ 
+    pageSize: 1000, // Get all posts for feed
+    locale: 'en' 
+  });
   
-  // Filter and sort posts based on environment
-  const isDev = import.meta.env.DEV;
-  const visiblePosts = posts.filter(post => shouldShowPost(post, isDev));
-  const sortedPosts = sortPostsByDate(visiblePosts);
+  // Extract posts array from response
+  const posts = response.items || [];
+  
+  // Filter out drafts (Strapi should already do this, but double-check)
+  const publishedPosts = posts.filter((post: any) => post.publishedAt);
+  
+  // Sort by date (newest first)
+  const sortedPosts = publishedPosts.sort((a: any, b: any) => 
+    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+  );
 
   const siteUrl = context.site?.toString() || siteConfig.site;
 
@@ -54,35 +44,25 @@ export async function GET(context: any) {
     title: siteConfig.title,
     description: siteConfig.description,
     site: siteUrl,
-    items: sortedPosts.map((post) => {
-      const postUrl = `${siteUrl}posts/${post.slug}`;
+    items: sortedPosts.map((post: any) => {
+      const postUrl = `${siteUrl}post/${post.slug}`;
       
       return {
-        title: post.data.title,
-        description: post.data.description,
-        pubDate: post.data.date,
+        title: post.title,
+        description: post.description || post.excerpt || '',
+        pubDate: new Date(post.publishedAt),
         link: postUrl,
-        categories: post.data.tags || [],
+        categories: post.tags || [],
         author: siteConfig.author,
-        // Include image if available and marked for OG
-        enclosure: post.data.image && post.data.imageOG ? {
-          url: (() => {
-            const imagePath = extractImagePath(post.data.image);
-            return typeof imagePath === 'string' && imagePath.startsWith('http') 
-              ? imagePath 
-              : `${siteUrl}posts/attachments/${imagePath.replace(/^.*\//, '')}`;
-          })(),
-          type: getMimeTypeFromPath(extractImagePath(post.data.image)),
+        // Include image if available
+        enclosure: post.imageUrl ? {
+          url: post.imageUrl,
+          type: getMimeTypeFromPath(post.imageUrl),
           length: 0 // Length is optional
         } : undefined,
         customData: [
-          post.data.targetKeyword && `<keyword>${post.data.targetKeyword}</keyword>`,
-          post.data.image && `<image>${(() => {
-            const imagePath = extractImagePath(post.data.image);
-            return typeof imagePath === 'string' && imagePath.startsWith('http') 
-              ? imagePath 
-              : `${siteUrl}posts/attachments/${imagePath.replace(/^.*\//, '')}`;
-          })()}</image>`,
+          post.targetKeyword && `<keyword>${post.targetKeyword}</keyword>`,
+          post.imageUrl && `<image>${post.imageUrl}</image>`,
         ].filter(Boolean).join(''),
       };
     }),

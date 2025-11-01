@@ -1,0 +1,15 @@
+{
+  "kind": "singleType",
+  "collectionName": "docs_index_pages",
+  "info": {
+    "singularName": "docs-index-page",
+    "pluralName": "docs-index-pages",
+    "displayName": "Docs Index Page"
+  },
+  "options": { "draftAndPublish": true },
+  "attributes": {
+    "title": { "type": "string" },
+    "description": { "type": "text" },
+    "content": { "type": "text" }
+  }
+}

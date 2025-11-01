@@ -7,27 +7,33 @@ import Pagination from '@/components/Pagination.astro';
 import Icon from '@/components/Icon.astro';
 import { fetchStrapiPosts } from '@/utils/strapi';
 
-// Read tag and locale
+// Enable server-side rendering for Strapi pagination
+export const prerender = false;
+
+const { page } = Astro.params;
+console.log('[page].astro (new) - Received page:', page);
+console.log('[page].astro (new) - Astro.url.pathname:', Astro.url.pathname);
 const url = new URL(Astro.request.url);
-const selectedTag = url.searchParams.get('tag');
+const selectedTag = url.searchParams.get('tag') || undefined;
+const currentPage = Math.max(1, parseInt(page || '2', 10) || 2);
+console.log('[page].astro (new) - Parsed currentPage:', currentPage);
+const postsPerPage = siteConfig.postOptions.postsPerPage;
 const locale = siteConfig.language || 'en';
 
-// Fetch first page from Strapi
-const postsPerPage = siteConfig.postOptions.postsPerPage;
-const { items, meta } = await fetchStrapiPosts({ page: 1, pageSize: postsPerPage, tag: selectedTag || undefined, locale });
+const { items, meta } = await fetchStrapiPosts({ page: currentPage, pageSize: postsPerPage, tag: selectedTag, locale });
+const totalPages = meta.pagination?.pageCount ?? currentPage;
 
-// Build tags set from current result (note: for full tag cloud, fetch all if needed)
 const tagSet = new Set<string>();
 items.forEach(p => (p.tags || []).forEach(t => tagSet.add(t)));
 const allTags = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
 
-const totalPosts = meta.pagination?.total ?? items.length;
-const totalPages = meta.pagination?.pageCount ?? 1;
-const currentPage = 1;
-
-// SEO
-const pageTitle = selectedTag ? `Posts tagged "${selectedTag}"` : 'All Posts';
-const pageDescription = selectedTag ? `All posts tagged with "${selectedTag}"` : `Browse posts on ${siteConfig.title}`;
+// Generate SEO data
+const pageTitle = selectedTag
+  ? `Posts tagged "${selectedTag}" - Page ${currentPage}`
+  : `All Posts - Page ${currentPage}`;
+const pageDescription = selectedTag
+  ? `All posts tagged with "${selectedTag}"`
+  : `Browse posts on ${siteConfig.title}`;
 const seoData = { title: `${pageTitle} | ${siteConfig.title}`, description: pageDescription, canonical: Astro.url.href, ogType: 'website' as const };
 
 const firstPageUrl = selectedTag ? `/posts?tag=${encodeURIComponent(selectedTag)}` : '/posts';
@@ -37,9 +43,7 @@ const pagination = {
   currentPage,
   totalPages,
   hasNext: currentPage < totalPages,
-  hasPrev: false,
-  nextUrl: undefined,
-  prevUrl: undefined
+  hasPrev: currentPage > 1,
 } as const;
 ---
 
@@ -54,26 +58,6 @@ const pagination = {
           <h1 class="text-lg font-bold text-primary-900 dark:text-primary-50">
             {pageTitle}
           </h1>
-          <div class="flex items-center space-x-2">
-            <a 
-              href="/rss.xml"
-              class="inline-flex items-center px-3 py-2 text-sm font-medium text-highlight-600 dark:text-highlight-400 bg-highlight-50 dark:bg-highlight-900/20 rounded-lg border border-highlight-200 dark:border-highlight-700 hover:bg-highlight-100 dark:hover:bg-highlight-900/40 hover:text-highlight-700 dark:hover:text-highlight-300 transition-all duration-200"
-              title="Subscribe to RSS feed"
-              data-no-swup
-            >
-              <Icon name="rss" class="w-4 h-4 mr-1.5" />
-              RSS Feed
-            </a>
-            <a 
-              href="/feed.xml"
-              class="inline-flex items-center px-3 py-2 text-sm font-medium text-highlight-600 dark:text-highlight-400 bg-highlight-50 dark:bg-highlight-900/20 rounded-lg border border-highlight-200 dark:border-highlight-700 hover:bg-highlight-100 dark:hover:bg-highlight-900/40 hover:text-highlight-700 dark:hover:text-highlight-300 transition-all duration-200"
-              title="Subscribe to Atom feed"
-              data-no-swup
-            >
-              <Icon name="atom" class="w-4 h-4 mr-1.5" />
-              Atom Feed
-            </a>
-          </div>
         </div>
         <p class="text-base text-primary-600 dark:text-primary-300">
           {selectedTag ? (
@@ -84,7 +68,7 @@ const pagination = {
               </span>
             </>
           ) : (
-            <>Explore all <strong>{totalPosts}</strong> posts</>
+            <>Page {currentPage} of {totalPages}</>
           )}
         </p>
 
@@ -116,45 +100,29 @@ const pagination = {
               <!-- Pagination -->
               <Pagination pagination={pagination} baseUrl={baseUrl} firstPageUrl={firstPageUrl} queryString={queryString} />
             </>
-          ) : selectedTag ? (
-            <!-- No posts for selected tag -->
-            <div class="text-center py-16">
-              <Icon name="tag" class="w-16 h-16 text-primary-400 dark:text-primary-500 mx-auto mb-6" />
-              <h2 class="font-semibold text-primary-900 dark:text-primary-50 mb-4">
-                No posts found
-              </h2>
-              <p class="text-primary-600 dark:text-primary-300 mb-8 max-w-md mx-auto">
-                There are no posts tagged with "{selectedTag}". Try browsing other tags or 
-                <a href="/posts" class="text-primary-600 dark:text-primary-300 hover:underline">view all posts</a>.
-              </p>
-            </div>
           ) : (
-            <!-- No posts at all -->
             <div class="text-center py-16">
               <Icon name="file-text" class="w-16 h-16 text-primary-400 dark:text-primary-500 mx-auto mb-6" />
               <h2 class="text-2xl font-semibold text-primary-900 dark:text-primary-50 mb-4">
-                No posts yet
+                No posts found on this page
               </h2>
               <p class="text-primary-600 dark:text-primary-300 mb-8">
-                This blog is just getting started. Check back soon for new content!
+                Try going back to an earlier page or removing filters.
               </p>
-              
             </div>
           )}
         </div>
 
-        <!-- Mobile sidebar - appears below content on mobile/tablet -->
+        <!-- Mobile sidebar -->
         <div class="xl:hidden mt-12 space-y-6">
-          <!-- Tags -->
           {siteConfig.postOptions.tags && allTags.length > 0 && (
             <Tags tags={allTags} />
           )}
         </div>
 
-        <!-- Desktop sidebar - floats to the right of the content container -->
+        <!-- Desktop sidebar -->
         <div class="hidden xl:block absolute top-0 left-full ml-8 w-64">
           <div class="sticky top-24 space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto pb-6">
-            <!-- Tags -->
             {siteConfig.postOptions.tags && allTags.length > 0 && (
               <Tags tags={allTags} />
             )}
@@ -164,22 +132,3 @@ const pagination = {
     </div>
   </div>
 </BaseLayout>
-
-<style>
-  /* Enhanced posts page styles */
-  .posts-grid {
-    display: grid;
-    gap: 2rem;
-  }
-
-  @media (min-width: 768px) {
-    .posts-grid {
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    }
-  }
-
-  /* Tag highlight in header */
-  .tag-highlight {
-    @apply bg-gradient-to-r from-highlight-500 to-highlight-600 text-white;
-  }
-</style>

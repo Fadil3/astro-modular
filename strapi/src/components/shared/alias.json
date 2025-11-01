@@ -1,0 +1,13 @@
+{
+  "collectionName": "components_shared_aliases",
+  "info": {
+    "displayName": "alias",
+    "description": "Alias (old URL slug) for redirects"
+  },
+  "attributes": {
+    "value": {
+      "type": "string",
+      "required": true
+    }
+  }
+}

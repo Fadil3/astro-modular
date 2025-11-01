@@ -7,6 +7,8 @@ declare global {
 interface ImportMetaEnv {
   readonly GOOGLE_ANALYTICS_ID: string;
   readonly API_KEY: string;
+  readonly STRAPI_URL: string;
+  readonly STRAPI_TOKEN?: string;
 }
 
 interface ImportMeta {

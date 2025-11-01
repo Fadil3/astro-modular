@@ -1,0 +1,21 @@
+---
+import { fetchStrapiPageBySlug } from '@/utils/strapi';
+import StrapiPageLayout from '@/layouts/StrapiPageLayout.astro';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+const locale = Astro.currentLocale || 'en';
+
+if (!slug) {
+  return Astro.redirect('/404');
+}
+
+const page = await fetchStrapiPageBySlug(slug, locale);
+
+if (!page) {
+  return Astro.redirect('/404');
+}
+---
+
+<StrapiPageLayout page={page} />

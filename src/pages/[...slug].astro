@@ -57,6 +57,13 @@ export interface Props {
 
 const { page } = Astro.props;
 
+// Handle redirects for old tag routes
+const { slug } = Astro.params;
+if (typeof slug === 'string' && slug.startsWith('posts/tag/')) {
+  const tagName = slug.replace('posts/tag/', '');
+  return Astro.redirect(`/posts?tag=${encodeURIComponent(tagName)}`);
+}
+
 // Validate page data
 if (!page) {
   return Astro.redirect('/404');

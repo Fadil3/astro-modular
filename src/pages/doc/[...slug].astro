@@ -1,0 +1,21 @@
+---
+import { fetchStrapiDocBySlug } from '@/utils/strapi';
+import StrapiDocLayout from '@/layouts/StrapiDocLayout.astro';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+const locale = Astro.currentLocale || 'en';
+
+if (!slug) {
+  return Astro.redirect('/404');
+}
+
+const doc = await fetchStrapiDocBySlug(slug, locale);
+
+if (!doc) {
+  return Astro.redirect('/404');
+}
+---
+
+<StrapiDocLayout doc={doc} />

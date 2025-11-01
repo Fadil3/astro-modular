@@ -1,0 +1,58 @@
+---
+interface Props {
+  doc: {
+    slug: string;
+    title: string;
+    description?: string;
+    category?: string;
+    version?: string;
+    imageUrl?: string;
+  };
+  eager?: boolean;
+  showImage?: boolean;
+}
+
+const { doc, eager = false, showImage = true } = Astro.props as Props;
+---
+
+<article class="group doc-card" role="article" aria-labelledby={`doc-title-${doc.slug}`}>
+  <a href={`/doc/${doc.slug}`} class="block" aria-label={`View documentation: ${doc.title}`}>
+    {doc.imageUrl && showImage && (
+      <div class="overflow-hidden rounded-t-lg bg-primary-100 dark:bg-primary-800" style="aspect-ratio: 1.91 / 1;">
+        <img 
+          src={doc.imageUrl}
+          alt={`Featured image for documentation: ${doc.title}`}
+          class="w-full h-full object-cover group-hover:scale-102 transition-all duration-300"
+          width="800"
+          height="450"
+          loading={eager ? 'eager' : 'lazy'}
+          fetchpriority={eager ? 'high' : 'auto'}
+          decoding="async"
+        />
+      </div>
+    )}
+
+    <div class={`p-4 ${doc.imageUrl && showImage ? 'rounded-b-lg' : 'rounded-lg'}`}>
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-primary-500 dark:text-primary-400 mb-1">
+        {doc.category && (
+          <span class="font-medium">{doc.category}</span>
+        )}
+        {doc.version && (
+          <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 dark:bg-primary-800 border border-primary-200 dark:border-primary-700">
+            v{doc.version}
+          </span>
+        )}
+      </div>
+
+      <h3 id={`doc-title-${doc.slug}`} class="text-base font-medium text-primary-900 dark:text-primary-100 leading-relaxed group-hover:text-highlight-600 dark:group-hover:text-highlight-400 transition-colors">
+        {doc.title}
+      </h3>
+
+      {doc.description && (
+        <p class="text-primary-600 dark:text-primary-300 line-clamp-2 text-sm leading-relaxed mt-1">
+          {doc.description}
+        </p>
+      )}
+    </div>
+  </a>
+</article>

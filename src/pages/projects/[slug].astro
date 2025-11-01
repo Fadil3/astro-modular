@@ -1,27 +1,13 @@
 ---
-import { getCollection } from 'astro:content';
-import { shouldShowContent } from '@/utils/markdown';
-import { siteConfig } from '@/config';
-import ProjectLayout from '@/layouts/ProjectLayout.astro';
+// Redirect old /projects/:slug to new /project/:slug route
+export const prerender = false;
 
-export async function getStaticPaths() {
-  // If projects are disabled, don't generate any paths
-  if (!siteConfig.optionalContentTypes.projects) {
-    return [];
-  }
-  
-  const projects = await getCollection('projects');
-  const isDev = import.meta.env.DEV;
-  
-  return projects
-    .filter(project => shouldShowContent(project, isDev))
-    .map(project => ({
-      params: { slug: project.slug },
-      props: { project }
-    }));
+const { slug } = Astro.params;
+
+if (!slug) {
+  return Astro.redirect('/404');
 }
 
-const { project } = Astro.props;
+// Redirect to new URL pattern
+return Astro.redirect(`/project/${slug}`);
 ---
-
-<ProjectLayout project={project} />

@@ -1,14 +1,14 @@
 ---
-import { getCollection, getEntry } from 'astro:content';
+import { getEntry } from 'astro:content';
 import { siteConfig } from '@/config';
 import { generatePostsListSEO } from '@/utils/seo';
-import { shouldShowContent, sortPostsByDate, isValidDate } from '@/utils/markdown';
-import { hasProjectCategories, getProjectCategories } from '@/utils/categories';
+import { fetchStrapiProjects } from '@/utils/strapi';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import PageLayout from '@/layouts/PageLayout.astro';
-import ProjectCard from '@/components/ProjectCard.astro';
-import ProjectCategories from '@/components/ProjectCategories.astro';
+import StrapiProjectCard from '@/components/StrapiProjectCard.astro';
 import Icon from '@/components/Icon.astro';
+
+export const prerender = false;
 
 // Check if projects are enabled and handle fallback
 let fallbackPage = null;
@@ -28,22 +28,13 @@ if (!siteConfig.optionalContentTypes.projects) {
   }
 }
 
-// Get all projects
-const allProjects = await getCollection('projects');
-const isDev = import.meta.env.DEV;
+// Get all projects from Strapi
+const locale = Astro.currentLocale || 'en';
+const allProjects = await fetchStrapiProjects({ locale });
 
-// Filter and sort projects (newest first)
-const visibleProjects = allProjects
-  .filter(project => shouldShowContent(project, isDev))
-  .sort((a, b) => {
-    const dateA = isValidDate(a.data.date) ? a.data.date : new Date(0);
-    const dateB = isValidDate(b.data.date) ? b.data.date : new Date(0);
-    return dateB.getTime() - dateA.getTime();
-  });
-
-// Check if any projects have categories and get them
-const projectsHaveCategories = hasProjectCategories(visibleProjects);
-const allCategories = projectsHaveCategories ? getProjectCategories(visibleProjects) : [];
+// Extract unique categories from projects
+const allCategories = Array.from(new Set(allProjects.flatMap(p => p.categories))).sort();
+const projectsHaveCategories = allCategories.length > 0;
 
 // Get projects page content from special collection
 let projectsPageContent = null;
@@ -91,16 +82,14 @@ seoData.noIndex = (projectsPageContent?.data as any)?.noIndex || false;
       <div class="relative">
         <!-- Main content -->
         <div class="max-w-none">
-          {visibleProjects.length > 0 ? (
+          {allProjects.length > 0 ? (
             <>
               <!-- Projects grid -->
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            {visibleProjects.map((project, index) => (
-              <ProjectCard 
+            {allProjects.map((project, index) => (
+              <StrapiProjectCard 
                 project={project} 
                 eager={index === 0}
-                context="projects"
-                showCategories={projectsHaveCategories}
               />
             ))}
               </div>
@@ -121,8 +110,17 @@ seoData.noIndex = (projectsPageContent?.data as any)?.noIndex || false;
         <!-- Mobile sidebar - appears below content on mobile/tablet -->
         <div class="xl:hidden mt-12 space-y-6">
           <!-- Categories -->
-          {siteConfig.postOptions.tags && projectsHaveCategories && allCategories.length > 0 && (
-            <ProjectCategories categories={allCategories} />
+          {projectsHaveCategories && allCategories.length > 0 && (
+            <div class="bg-primary-50 dark:bg-primary-900 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm p-6">
+              <h3 class="text-base font-semibold text-primary-900 dark:text-primary-50 mb-4">Categories</h3>
+              <div class="flex flex-wrap gap-2">
+                {allCategories.map((category) => (
+                  <span class="text-xs text-primary-600 dark:text-primary-300 bg-primary-100 dark:bg-primary-800 px-2.5 py-1 rounded-full border border-primary-200 dark:border-primary-700">
+                    {category}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
@@ -130,8 +128,17 @@ seoData.noIndex = (projectsPageContent?.data as any)?.noIndex || false;
         <div class="hidden xl:block absolute top-0 left-full ml-8 w-64">
           <div class="sticky top-24 space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto pb-6">
             <!-- Categories -->
-            {siteConfig.postOptions.tags && projectsHaveCategories && allCategories.length > 0 && (
-              <ProjectCategories categories={allCategories} />
+            {projectsHaveCategories && allCategories.length > 0 && (
+              <div class="bg-primary-50 dark:bg-primary-900 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm p-6">
+                <h3 class="text-base font-semibold text-primary-900 dark:text-primary-50 mb-4">Categories</h3>
+                <div class="flex flex-wrap gap-2">
+                  {allCategories.map((category) => (
+                    <span class="text-xs text-primary-600 dark:text-primary-300 bg-primary-100 dark:bg-primary-800 px-2.5 py-1 rounded-full border border-primary-200 dark:border-primary-700">
+                      {category}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

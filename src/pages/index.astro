@@ -1,108 +1,75 @@
 ---
-import { getCollection, getEntry, type CollectionEntry } from 'astro:content';
-import { isValidDate } from '@/utils/markdown';
+import { getEntry } from 'astro:content';
 import { siteConfig } from '@/config';
 import { generateHomeSEO } from '@/utils/seo';
-import { shouldShowPost, shouldShowContent, sortPostsByDate, processPost } from '@/utils/markdown';
-import { hasProjectCategories } from '@/utils/categories';
+import { fetchStrapiPosts, fetchStrapiProjects, fetchStrapiDocs } from '@/utils/strapi';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import PostCard from '@/components/PostCard.astro';
-import ProjectCard from '@/components/ProjectCard.astro';
-import DocumentationCard from '@/components/DocumentationCard.astro';
+import StrapiPostCard from '@/components/StrapiPostCard.astro';
+import StrapiProjectCard from '@/components/StrapiProjectCard.astro';
+import StrapiDocCard from '@/components/StrapiDocCard.astro';
 import Icon from '@/components/Icon.astro';
-import { optimizePostImagePath } from '@/utils/images';
 
-// Get all posts and filter by visibility
-const allPosts = await getCollection('posts');
-const isDev = import.meta.env.DEV;
-const visiblePosts = allPosts.filter(post => shouldShowPost(post, isDev));
-const sortedPosts = sortPostsByDate(visiblePosts);
+export const prerender = false;
 
-// Process posts for reading time and word count
-const processedPosts = await Promise.all(
-  sortedPosts.map(async (post) => await processPost(post))
-) as any[];
+const locale = Astro.currentLocale || 'en';
+
+// Get all posts from Strapi
+const { items: allPosts } = await fetchStrapiPosts({ 
+  pageSize: 100, 
+  locale 
+});
 
 // Get featured post based on configuration
 let featuredPost = null;
 if (siteConfig.homeOptions.featuredPost.enabled) {
   if (siteConfig.homeOptions.featuredPost.type === "latest") {
-    featuredPost = processedPosts[0];
+    featuredPost = allPosts[0];
   } else if (siteConfig.homeOptions.featuredPost.type === "featured" && siteConfig.homeOptions.featuredPost.slug) {
     // Find the specific post by slug
-    featuredPost = processedPosts.find(post => post.slug === siteConfig.homeOptions.featuredPost.slug) || null;
+    featuredPost = allPosts.find(post => post.slug === siteConfig.homeOptions.featuredPost.slug) || null;
   }
 }
 
 // Get preview posts based on whether featured post is shown
 const previewPosts = featuredPost 
-  ? processedPosts.slice(1, siteConfig.homeOptions.recentPosts.count + 1)
-  : processedPosts.slice(0, siteConfig.homeOptions.recentPosts.count);
+  ? allPosts.slice(1, siteConfig.homeOptions.recentPosts.count + 1)
+  : allPosts.slice(0, siteConfig.homeOptions.recentPosts.count);
 
 // Get featured projects if enabled
 let featuredProjects: any[] = [];
-let projectsHaveCategories = false;
+let projectCategories: string[] = [];
 if (siteConfig.homeOptions.projects.enabled && siteConfig.optionalContentTypes.projects) {
-  const allProjects = await getCollection('projects');
-  const visibleProjects = allProjects.filter(project => shouldShowContent(project, isDev));
+  const allProjects = await fetchStrapiProjects({ locale });
   
-  // Check if any projects have categories
-  projectsHaveCategories = hasProjectCategories(visibleProjects);
+  // Extract unique categories
+  projectCategories = Array.from(new Set(allProjects.flatMap(p => p.categories)));
   
   // First try to get featured projects
-  const featuredOnly = visibleProjects.filter(project => project.data.featured);
+  const featuredOnly = allProjects.filter(project => project.featured);
   
   if (featuredOnly.length > 0) {
     // Show up to configured count of featured projects
-            featuredProjects = featuredOnly
-              .sort((a, b) => {
-                const dateA = isValidDate(a.data.date) ? a.data.date : new Date(0);
-                const dateB = isValidDate(b.data.date) ? b.data.date : new Date(0);
-                return dateB.getTime() - dateA.getTime();
-              })
-              .slice(0, siteConfig.homeOptions.projects.count);
-  } else if (visibleProjects.length > 0) {
+    featuredProjects = featuredOnly.slice(0, siteConfig.homeOptions.projects.count);
+  } else if (allProjects.length > 0) {
     // Fallback to most recent projects if no featured ones
-    featuredProjects = visibleProjects
-      .sort((a, b) => {
-        const dateA = isValidDate(a.data.date) ? a.data.date : new Date(0);
-        const dateB = isValidDate(b.data.date) ? b.data.date : new Date(0);
-        return dateB.getTime() - dateA.getTime();
-      })
-      .slice(0, siteConfig.homeOptions.projects.count);
+    featuredProjects = allProjects.slice(0, siteConfig.homeOptions.projects.count);
   }
-  
 }
 
 // Get featured docs if enabled
 let featuredDocs: any[] = [];
 if (siteConfig.homeOptions.docs.enabled && siteConfig.optionalContentTypes.docs) {
-  const allDocs = await getCollection('docs');
-  const visibleDocs = allDocs.filter(doc => shouldShowContent(doc, isDev));
+  const allDocs = await fetchStrapiDocs({ locale });
   
   // First try to get featured docs
-  const featuredOnly = visibleDocs.filter(doc => doc.data.featured);
+  const featuredOnly = allDocs.filter(doc => doc.featured);
   
   if (featuredOnly.length > 0) {
     // Show up to configured count of featured docs
-    featuredDocs = featuredOnly
-      .sort((a, b) => {
-        // Use lastModified if available, otherwise use epoch (invisible date for sorting)
-        const dateA = (a.data.lastModified && isValidDate(a.data.lastModified)) ? a.data.lastModified : new Date(0);
-        const dateB = (b.data.lastModified && isValidDate(b.data.lastModified)) ? b.data.lastModified : new Date(0);
-        return dateB.getTime() - dateA.getTime();
-      })
-      .slice(0, siteConfig.homeOptions.docs.count);
-  } else if (visibleDocs.length > 0) {
+    featuredDocs = featuredOnly.slice(0, siteConfig.homeOptions.docs.count);
+  } else if (allDocs.length > 0) {
     // Fallback to most recent docs if no featured ones
-    featuredDocs = visibleDocs
-      .sort((a, b) => {
-        // Use lastModified if available, otherwise use epoch (invisible date for sorting)
-        const dateA = (a.data.lastModified && isValidDate(a.data.lastModified)) ? a.data.lastModified : new Date(0);
-        const dateB = (b.data.lastModified && isValidDate(b.data.lastModified)) ? b.data.lastModified : new Date(0);
-        return dateB.getTime() - dateA.getTime();
-      })
-      .slice(0, siteConfig.homeOptions.docs.count);
+    featuredDocs = allDocs.slice(0, siteConfig.homeOptions.docs.count);
   }
 }
 
@@ -163,12 +130,12 @@ const structuredData = {
     <!-- Structured Data -->
     <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
 
-    <!-- Preload critical images - use same URL as actual img tags for caching -->
-    {featuredPost && featuredPost.data.image && siteConfig.postOptions.showPostCardCoverImages === 'all' && !featuredPost.data.hideCoverImage && typeof featuredPost.data.image === 'string' && !featuredPost.data.image.startsWith('http') && (
+    <!-- Preload critical images -->
+    {featuredPost && featuredPost.imageUrl && (
       <link 
         rel="preload" 
         as="image" 
-        href={optimizePostImagePath(featuredPost.data.image, featuredPost.slug)}
+        href={featuredPost.imageUrl}
         fetchpriority="high"
       />
     )}
@@ -195,7 +162,7 @@ const structuredData = {
             </div>
           </div>
         </article>
-      ) : processedPosts.length > 0 ? (
+      ) : allPosts.length > 0 ? (
         <>
           <!-- Home blurb above posts -->
           {siteConfig.homeOptions.blurb.placement === 'above' && HomeBlurbContent && (
@@ -213,7 +180,7 @@ const structuredData = {
                 </h2>
               </div>
 
-              <PostCard post={featuredPost} featured={true} eager={true} context="featured" />
+              <StrapiPostCard post={featuredPost} featured={true} eager={true} context="featured" />
             </section>
           )}
 
@@ -236,7 +203,7 @@ const structuredData = {
 
               <div class="space-y-4">
                 {previewPosts.map((post, index) => (
-                  <PostCard post={post} eager={index === 0} context="recent" />
+                  <StrapiPostCard post={post} eager={index === 0} context="recent" />
                 ))}
               </div>
 
@@ -272,7 +239,7 @@ const structuredData = {
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {featuredProjects.map((project, index) => (
-                  <ProjectCard project={project} eager={index === 0} context="home" showCategories={projectsHaveCategories} />
+                  <StrapiProjectCard project={project} eager={index === 0} />
                 ))}
               </div>
 
@@ -308,7 +275,7 @@ const structuredData = {
 
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {featuredDocs.map((doc, index) => (
-                  <DocumentationCard documentation={doc} eager={index === 0} context="home" />
+                  <StrapiDocCard doc={doc} eager={index === 0} showImage={false} />
                 ))}
               </div>
 
@@ -344,19 +311,12 @@ const structuredData = {
             <p class="text-primary-600 dark:text-primary-300 mb-8">
               This blog is just getting started. Check back soon for new content!
             </p>
-            {isDev && (
-              <div class="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p class="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Dev Mode:</strong> Add some posts to the <code>content/posts/</code> directory to see them here.
-                </p>
-              </div>
-            )}
           </div>
         </section>
       )}
 
     </div>
-  </main>
+  </div>
 </BaseLayout>
 
 <script>
