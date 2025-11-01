@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "cross-env ASTRO_CONTENT_COLLECTION_CACHE=false node scripts/setup-dev.mjs && node scripts/sync-images.js && node scripts/process-aliases.js && node scripts/generate-deployment-config.js && node scripts/generate-graph-data.js && astro dev --host localhost --port 5000",
     "build": "node scripts/sync-images.js && node scripts/process-aliases.js && node scripts/generate-deployment-config.js && node scripts/generate-graph-data.js && astro build",
-    "preview": "astro preview --host localhost --port 5000",
+    "preview": "echo '@astrojs/netlify adapter does not support astro preview. Use \"pnpm run dev\" for local SSR or \"pnpm run preview:netlify\" with Netlify CLI.' && exit 1",
+    "preview:netlify": "netlify dev --port 5000",
     "sync-images": "node scripts/sync-images.js",
     "process-aliases": "node scripts/process-aliases.js",
     "generate-deployment-config": "node scripts/generate-deployment-config.js",

@@ -36,19 +36,18 @@ export default defineConfig({
     enabled: false,
   },
   redirects: {
-    "/about-me": "/about",
-    "/about-us": "/about",
-    "/contact-me": "/contact",
-    "/contact-us": "/contact",
-    "/privacy": "/privacy-policy",
-    "/posts/astro-suite-vault-modular-guide":
-      "/posts/astro-suite-obsidian-vault-guide-astro-modular",
-    "/posts/mermaid-test": "/posts/mermaid-diagram-test",
-    "/projects/obsidian-astro-composer": "/projects/astro-composer",
-    "/docs/api-reference": "/docs/api",
-    "/docs/astro-modular-configuration": "/docs/configuration",
-    "/docs/sourcetree-and-git": "/docs/sourcetree-and-git-setup",
-  },
+  '/about-me': '/about',
+  '/about-us': '/about',
+  '/contact-me': '/contact',
+  '/contact-us': '/contact',
+  '/privacy': '/privacy-policy',
+  '/posts/astro-suite-vault-modular-guide': '/posts/astro-suite-obsidian-vault-guide-astro-modular',
+  '/posts/mermaid-test': '/posts/mermaid-diagram-test',
+  '/projects/obsidian-astro-composer': '/projects/astro-composer',
+  '/docs/api-reference': '/docs/api',
+  '/docs/astro-modular-configuration': '/docs/configuration',
+  '/docs/sourcetree-and-git': '/docs/sourcetree-and-git-setup'
+},
   image: {
     service: {
       entrypoint: "astro/assets/services/sharp",

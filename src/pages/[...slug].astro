@@ -1,61 +1,11 @@
 ---
-import type { GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import { siteConfig } from '@/config';
 import PageLayout from '@/layouts/PageLayout.astro';
+import { fetchStrapiPageBySlug } from '@/utils/strapi';
+import StrapiPageLayout from '@/layouts/StrapiPageLayout.astro';
 
-export const getStaticPaths: GetStaticPaths = async () => {
-  // Get all pages
-  const pages = await getCollection('pages');
-  
-  // Get all special pages
-  const specialPages = await getCollection('special');
-
-  // Filter out special pages that are handled by dedicated routes
-  // Note: 'projects' and 'docs' are NOT filtered out here because they can be fallback pages
-  const specialPageSlugs = ['home', '404'];
-  const visiblePages = pages.filter(page => !specialPageSlugs.includes(page.slug));
-
-  // Generate paths for regular pages
-  const pagePaths = visiblePages.map(page => ({
-    params: { slug: page.slug },
-    props: { page }
-  }));
-
-  // Generate paths for special pages (excluding home and 404 which have special handling)
-  // Special pages serve as fallback content when features are disabled
-  const specialPaths = specialPages
-    .filter(page => {
-      // Always exclude home and 404
-      if (['home', '404'].includes(page.slug)) {
-        return false;
-      }
-      
-      // For projects and docs: only include if their features are disabled
-      // When features are enabled, the dedicated routes handle these paths
-      if (page.slug === 'projects') {
-        return !siteConfig.optionalContentTypes.projects;
-      }
-      
-      if (page.slug === 'docs') {
-        return !siteConfig.optionalContentTypes.docs;
-      }
-      
-      return true;
-    })
-    .map(page => ({
-      params: { slug: page.slug },
-      props: { page }
-    }));
-
-  return [...pagePaths, ...specialPaths];
-};
-
-export interface Props {
-  page: any;
-}
-
-const { page } = Astro.props;
+export const prerender = false;
 
 // Handle redirects for old tag routes
 const { slug } = Astro.params;
@@ -64,16 +14,51 @@ if (typeof slug === 'string' && slug.startsWith('posts/tag/')) {
   return Astro.redirect(`/posts?tag=${encodeURIComponent(tagName)}`);
 }
 
-// Validate page data
-if (!page) {
+// Ensure we have a slug string
+if (typeof slug !== 'string' || !slug) {
   return Astro.redirect('/404');
 }
 
-// Check if page is draft (only in production)
-const isDev = import.meta.env.DEV;
-if (!isDev && page.data.draft) {
-  return Astro.redirect('/404');
+const locale = Astro.currentLocale || 'en';
+
+// 1) Try Strapi Pages first (so /about resolves to Strapi without needing /page/about)
+const strapiPage = await fetchStrapiPageBySlug(slug, locale);
+if (strapiPage) {
+  // Render Strapi-backed page
+  const page = strapiPage;
+  return await Astro.render(StrapiPageLayout, { page });
 }
+
+// 2) Fallback to content collections for legacy/special pages
+// Special pages that act as fallbacks when optional content types are disabled
+if (slug === 'projects' && !siteConfig.optionalContentTypes.projects) {
+  const special = await getCollection('special');
+  const specialPage = special.find((p) => p.slug === 'projects');
+  if (specialPage) {
+    return await Astro.render(PageLayout, { page: specialPage });
+  }
+}
+
+if (slug === 'docs' && !siteConfig.optionalContentTypes.docs) {
+  const special = await getCollection('special');
+  const specialPage = special.find((p) => p.slug === 'docs');
+  if (specialPage) {
+    return await Astro.render(PageLayout, { page: specialPage });
+  }
+}
+
+// Regular content pages (legacy file-based pages)
+const pages = await getCollection('pages');
+const contentPage = pages.find((p) => p.slug === slug);
+if (contentPage) {
+  // In production, hide drafts
+  const isDev = import.meta.env.DEV;
+  if (!isDev && contentPage.data.draft) {
+    return Astro.redirect('/404');
+  }
+  return await Astro.render(PageLayout, { page: contentPage });
+}
+
+// Nothing matched
+return Astro.redirect('/404');
 ---
-
-<PageLayout page={page} />
