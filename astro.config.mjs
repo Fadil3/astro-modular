@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 import tailwind from "@astrojs/tailwind";
 import sitemap from "@astrojs/sitemap";
 import mdx from "@astrojs/mdx";
+import netlify from "@astrojs/netlify";
 import {
   remarkInternalLinks,
   remarkFolderImages,
@@ -27,6 +28,7 @@ const DEPLOYMENT_PLATFORM = process.env.DEPLOYMENT_PLATFORM || "netlify";
 export default defineConfig({
   site: siteConfig.site,
   output: "server",
+  adapter: netlify(),
   deployment: {
     platform: DEPLOYMENT_PLATFORM,
   },
@@ -43,11 +45,9 @@ export default defineConfig({
       "/posts/astro-suite-obsidian-vault-guide-astro-modular",
     "/posts/mermaid-test": "/posts/mermaid-diagram-test",
     "/projects/obsidian-astro-composer": "/projects/astro-composer",
-    "/projects/:slug": "/project/:slug",
     "/docs/api-reference": "/docs/api",
     "/docs/astro-modular-configuration": "/docs/configuration",
     "/docs/sourcetree-and-git": "/docs/sourcetree-and-git-setup",
-    "/docs/:slug": "/doc/:slug",
   },
   image: {
     service: {

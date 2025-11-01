@@ -25,10 +25,40 @@ const projectRoot = join(__dirname, "..");
 const OUTPUT_DIR = join(projectRoot, "public", "graph");
 const OUTPUT_FILE = join(OUTPUT_DIR, "graph-data.json");
 
-// Get Strapi configuration from environment
-const STRAPI_URL = process.env.STRAPI_URL || "http://localhost:1337";
-const STRAPI_TOKEN = process.env.STRAPI_TOKEN || "";
+// Load environment variables from .env file
+function loadEnvFile() {
+  try {
+    const envPath = join(projectRoot, ".env");
+    if (existsSync(envPath)) {
+      const envContent = readFileSync(envPath, "utf-8");
+      const lines = envContent.split("\n");
 
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Skip comments and empty lines
+        if (!trimmed || trimmed.startsWith("#")) continue;
+
+        const [key, ...valueParts] = trimmed.split("=");
+        if (key && valueParts.length > 0) {
+          const value = valueParts.join("=").trim();
+          // Only set if not already in environment
+          if (!process.env[key]) {
+            process.env[key] = value;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    // Silently fail - environment variables might be set another way
+  }
+}
+
+// Load .env file before getting configuration
+loadEnvFile();
+
+// Get Strapi configuration from environment (with fallback)
+const STRAPI_URL = process.env.STRAPI_URL || "https://cms.server-fadil.my.id";
+const STRAPI_TOKEN = process.env.STRAPI_TOKEN || "";
 /**
  * Read maxNodes from config file
  */
