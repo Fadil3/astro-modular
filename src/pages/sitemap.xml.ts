@@ -1,37 +1,41 @@
-
-import type { APIRoute } from 'astro';
-import { siteConfig } from '../config';
-import { fetchStrapiPosts, fetchStrapiPages, fetchStrapiProjects, fetchStrapiDocs } from '../utils/strapi';
+import type { APIRoute } from "astro";
+import { siteConfig } from "../config";
+import {
+  fetchStrapiPosts,
+  fetchStrapiPages,
+  fetchStrapiProjects,
+  fetchStrapiDocs,
+} from "../utils/strapi";
 
 function shouldExcludeFromSitemap(slug: string): boolean {
-  const excludedSlugs = ['404', 'sitemap', 'rss', 'home', 'not-found-page'];
+  const excludedSlugs = ["404", "sitemap", "rss", "home", "not-found-page"];
   return excludedSlugs.includes(slug);
 }
 
-export const GET: APIRoute = async ({ site }) => {  
-  const siteUrl = site?.toString() || siteConfig.site;  
-  const locale = 'en';
-    
+export const GET: APIRoute = async ({ site }) => {
+  const siteUrl = site?.toString() || siteConfig.site;
+  const locale = "en";
+
   // Get all content from Strapi
   const postsResponse = await fetchStrapiPosts({ pageSize: 1000, locale });
   const pages = await fetchStrapiPages({ locale });
-  const projects = siteConfig.optionalContentTypes.projects 
+  const projects = siteConfig.optionalContentTypes.projects
     ? await fetchStrapiProjects({ locale })
     : [];
-  const docs = siteConfig.optionalContentTypes.docs 
+  const docs = siteConfig.optionalContentTypes.docs
     ? await fetchStrapiDocs({ locale })
     : [];
-  
+
   const posts = postsResponse.items || [];
-  
+
   // Filter out excluded pages
-  const visiblePages = pages.filter((page: any) =>   
-    !shouldExcludeFromSitemap(page.slug)  
-  ); 
-  
+  const visiblePages = pages.filter(
+    (page: any) => !shouldExcludeFromSitemap(page.slug)
+  );
+
   // Generate URLs
   const urls: string[] = [];
-  
+
   // Homepage
   urls.push(`
     <url>
@@ -41,7 +45,7 @@ export const GET: APIRoute = async ({ site }) => {
       <priority>1.0</priority>
     </url>
   `);
-  
+
   // Posts index page
   urls.push(`
     <url>
@@ -75,7 +79,7 @@ export const GET: APIRoute = async ({ site }) => {
       </url>
     `);
   }
-  
+
   // Individual posts
   posts.forEach((post: any) => {
     urls.push(`
@@ -87,13 +91,17 @@ export const GET: APIRoute = async ({ site }) => {
       </url>
     `);
   });
-  
+
   // Individual pages
   visiblePages.forEach((page: any) => {
     urls.push(`
       <url>
         <loc>${siteUrl}${page.slug}/</loc>
-        <lastmod>${page.lastModified ? new Date(page.lastModified).toISOString() : new Date().toISOString()}</lastmod>
+        <lastmod>${
+          page.lastModified
+            ? new Date(page.lastModified).toISOString()
+            : new Date().toISOString()
+        }</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
       </url>
@@ -124,11 +132,11 @@ export const GET: APIRoute = async ({ site }) => {
       </url>
     `);
   });
-  
+
   // Posts pagination pages
   const postsPerPage = siteConfig.postOptions.postsPerPage;
   const totalPages = Math.ceil(posts.length / postsPerPage);
-  
+
   for (let page = 2; page <= totalPages; page++) {
     urls.push(`
       <url>
@@ -139,18 +147,18 @@ export const GET: APIRoute = async ({ site }) => {
       </url>
     `);
   }
-  
+
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
         xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
-  ${urls.join('')}
+  ${urls.join("")}
 </urlset>`;
 
   return new Response(sitemap, {
     headers: {
-      'Content-Type': 'application/xml',
-      'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+      "Content-Type": "application/xml",
+      "Cache-Control": "public, max-age=3600", // Cache for 1 hour
     },
   });
 };
